@@ -1,4 +1,5 @@
 const { ethers, utils, BigNumber } = require('ethers');
+const axios = require("axios")
 
 const DAOaddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'; // USDC mainnet address for now
 const userAddress = '0x0';
@@ -20,41 +21,45 @@ async function isMember(address) {
     return false;
 }
 
-async function main() {
+async function getDAOfriends() {
 
-    // add GraphQL query
-    let ccQuery = {
-        "followings": {
-            "list": [
-                {
-                    "address": "0x01eacadf51ff60916157e32a58f640fe854e530f"
-                },
-                {
-                    "address": "0x03027d7312e7fb96447067ab5590de0ca1c4bf62"
-                },
-                {
-                    "address": "0x04048239f7c525989022e0dc7f988565dedcd1e4"
-                },
-                {
-                    "address": "0x0724b23bf45d7cb81c128681ec17d2e98eb9b0f2"
-                },
-                {
-                    "address": "0x0aa5973f2614dccfbe53c8273da22502d7e4fbd5"
-                },
-                {
-                    "address": "0x85367ad4388db08Ed6cCa3471eFc9d99ba9BBB41"
-                }]
+    let ccQuery = await axios({
+        url: ccAPI,
+        method: 'post',
+        data: {
+            query: `
+          query {
+            identity(address: "0x8ddD03b89116ba89E28Ef703fe037fF77451e38E") {
+              ens
+              address
+              followingCount
+              followerCount
+              followers {
+                list {
+                  address
+                }
+              }
+              followings {
+                list{
+                  address
+                }
+              }
+            }
+          }
+            `
         }
-    };
+    });
+    const followers = ccQuery.data['data']['identity']['followings']['list'].map((x) => { return x['address']; });
 
-    const followers = ccQuery['followings']['list'].map((x) => { return x['address']; });
-
-    const DAOfollowers = await filter(ccQuery['followings']['list'], async follower => {
-        return await isMember(follower['address']);
+    const DAOfollowers = await filter(followers, async follower => {
+        return await isMember(follower);
     })
 
+    return DAOfollowers
+}
 
-    console.log("Followings in the DAO: ", DAOfollowers)
+async function main() {
+    console.log(await getDAOfriends());
 }
 
 main()
